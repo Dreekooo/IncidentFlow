@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: incident-flow-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: incidentflow
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./apps/backend
+    container_name: incident-flow-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
