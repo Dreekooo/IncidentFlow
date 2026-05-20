@@ -10,6 +10,40 @@ import (
 	_ "github.com/lib/pq"
 )
 
+var DB *sql.DB
+
+func runMigration(database *sql.DB, path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read migration %s: %w", path, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = database.ExecContext(ctx, string(content))
+	if err != nil {
+		return fmt.Errorf("execute migration %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func InitDB(database *sql.DB) error {
+	if database == nil {
+		return fmt.Errorf("database is nil")
+	}
+
+	err := runMigration(database, "migrations/001_create_users.sql")
+	if err != nil {
+		return err
+	}
+
+	DB = database
+
+	return nil
+}
+
 func Connect() (*sql.DB, error) {
 	databaseUrl := os.Getenv("DATABASE_URL")
 	if databaseUrl == "" {
