@@ -34,6 +34,14 @@ func GenerateAuthToken(userID int) (string, error) {
 		return "", err
 	}
 
+	return GenerateAuthTokenWithSecret(userID, secret)
+}
+
+func GenerateAuthTokenWithSecret(userID int, secret []byte) (string, error) {
+	if len(secret) == 0 {
+		return "", fmt.Errorf("JWT secret is empty")
+	}
+
 	now := time.Now()
 	claims := Claims{
 		UserID: userID,
@@ -55,6 +63,14 @@ func ParseAuthToken(tokenString string) (*Claims, error) {
 		return nil, err
 	}
 
+	return ParseAuthTokenWithSecret(tokenString, secret)
+}
+
+func ParseAuthTokenWithSecret(tokenString string, secret []byte) (*Claims, error) {
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("JWT secret is empty")
+	}
+
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -72,4 +88,25 @@ func ParseAuthToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// GenerateAuthTokenWithSecretAndExpiry generates a token with custom expiry time (for testing)
+func GenerateAuthTokenWithSecretAndExpiry(userID int, secret []byte, expiresAt time.Time) (string, error) {
+	if len(secret) == 0 {
+		return "", fmt.Errorf("JWT secret is empty")
+	}
+
+	now := time.Now()
+	claims := Claims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   strconv.Itoa(userID),
+			Issuer:    issuer,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(secret)
 }

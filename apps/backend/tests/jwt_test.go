@@ -17,79 +17,68 @@ import (
  */
 
 func TestGenerateAndParseAuthToken(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
+	secret := []byte("test-secret")
 
-	token, err := auth.GenerateAuthToken(42)
+	token, err := auth.GenerateAuthTokenWithSecret(2, secret)
 	if err != nil {
 		t.Fatalf("GenerateAuthToken() error = %v", err)
 	}
 
-	claims, err := auth.ParseAuthToken(token)
+	claims, err := auth.ParseAuthTokenWithSecret(token, secret)
 	if err != nil {
 		t.Fatalf("ParseAuthToken() error = %v", err)
 	}
 
-	if claims.UserID != 42 {
-		t.Fatalf("expected user id 42, got %d", claims.UserID)
+	if claims.UserID != 2 {
+		t.Fatalf("expected user id 2, got %d", claims.UserID)
 	}
 
-	if claims.Subject != "42" {
-		t.Fatalf("expected subject 42, got %s", claims.Subject)
+	if claims.Subject != "2" {
+		t.Fatalf("expected subject 2, got %s", claims.Subject)
 	}
 }
 
 func TestGenerateAuthTokenMissingSecret(t *testing.T) {
-	t.Setenv("JWT_SECRET", "")
-
-	_, err := auth.GenerateAuthToken(1)
+	_, err := auth.GenerateAuthTokenWithSecret(1, nil)
 	if err == nil {
 		t.Fatal("expected error when JWT_SECRET is missing")
 	}
 }
 
 func TestParseAuthTokenMissingSecret(t *testing.T) {
-	t.Setenv("JWT_SECRET", "")
-
-	_, err := auth.ParseAuthToken("some-token")
+	_, err := auth.ParseAuthTokenWithSecret("some-token", nil)
 	if err == nil {
 		t.Fatal("expected error when JWT_SECRET is missing")
 	}
 }
 
 func TestParseAuthTokenInvalidToken(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
-
-	_, err := auth.ParseAuthToken("invalid-token")
+	_, err := auth.ParseAuthTokenWithSecret("invalid-token", []byte("test-secret"))
 	if err == nil {
 		t.Fatal("expected error when parsing invalid token")
 	}
 }
 
 func TestParseAuthTokenWrongSecret(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
-
-	token, err := auth.GenerateAuthToken(1)
+	secret := []byte("test-secret")
+	token, err := auth.GenerateAuthTokenWithSecret(1, secret)
 	if err != nil {
 		t.Fatalf("GenerateAuthToken() error = %v", err)
 	}
 
-	t.Setenv("JWT_SECRET", "wrong-secret")
-
-	_, err = auth.ParseAuthToken(token)
+	_, err = auth.ParseAuthTokenWithSecret(token, []byte("wrong-secret"))
 	if err == nil {
 		t.Fatal("expected error when parsing token with wrong secret")
 	}
 }
 
 func TestGenerateAuthTokenHasExpiry(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
-
-	token, err := auth.GenerateAuthToken(1)
+	token, err := auth.GenerateAuthTokenWithSecret(1, []byte("test-secret"))
 	if err != nil {
 		t.Fatalf("GenerateAuthToken() error = %v", err)
 	}
 
-	claims, err := auth.ParseAuthToken(token)
+	claims, err := auth.ParseAuthTokenWithSecret(token, []byte("test-secret"))
 	if err != nil {
 		t.Fatalf("ParseAuthToken() error = %v", err)
 	}
@@ -100,14 +89,12 @@ func TestGenerateAuthTokenHasExpiry(t *testing.T) {
 }
 
 func TestGenerateAuthTokenIssuer(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
-	
-	token, err := auth.GenerateAuthToken(1)
+	token, err := auth.GenerateAuthTokenWithSecret(1, []byte("test-secret"))
 	if err != nil {
 		t.Fatalf("GenerateAuthToken() error = %v", err)
 	}
 
-	claims, err := auth.ParseAuthToken(token)
+	claims, err := auth.ParseAuthTokenWithSecret(token, []byte("test-secret"))
 	if err != nil {
 		t.Fatalf("ParseAuthToken() error = %v", err)
 	}

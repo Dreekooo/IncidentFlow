@@ -11,6 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+/**
+ * Tests for authentication handlers
+ * These tests cover:
+ * - Successful registration and login
+ * - Handling of invalid input (e.g. invalid email, short password)
+ * - Handling of duplicate email registration
+ * - Ensuring passwords are hashed in the database
+ * - Handling of login with incorrect password or non-existent user
+ * - Handling of missing fields in registration and login
+ */
+
 func TestRegisterSuccess(t *testing.T) {
 	userRepo := setupTestDB(t)
 	router := setupTestRouter(userRepo)
