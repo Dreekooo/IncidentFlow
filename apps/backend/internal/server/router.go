@@ -12,6 +12,9 @@ func SetupRouter(authHandler *handlers.AuthHandler) *gin.Engine {
 	r := gin.Default()
 	profileHandler := handlers.NewProfileHandler()
 
+	// Apply global middleware
+	r.Use(middleware.LoggingMiddleware())
+
 	r.GET("/health", func(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{

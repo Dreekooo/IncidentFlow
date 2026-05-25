@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"incident-flow/backend/internal/logger"
 	"incident-flow/backend/internal/models"
 )
 
@@ -32,9 +33,11 @@ func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword s
 	var existingID int
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM users WHERE email = $1", email).Scan(&existingID)
 	if err == nil {
+		logger.Debug("repository: email already exists", "email", email)
 		return nil, ErrEmailExists
 	}
 	if err != sql.ErrNoRows {
+		logger.Error("repository: failed to check email", "email", email, "error", err.Error())
 		return nil, fmt.Errorf("check email: %w", err)
 	}
 
@@ -51,9 +54,11 @@ func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword s
 		hashedPassword,
 	).Scan(&userID, &role, &createdAt)
 	if err != nil {
+		logger.Error("repository: failed to insert user", "email", email, "error", err.Error())
 		return nil, fmt.Errorf("insert user: %w", err)
 	}
 
+	logger.Debug("repository: user created", "user_id", userID, "email", email, "role", role)
 	return &models.User{
 		ID:        userID,
 		Email:     email,
@@ -78,10 +83,13 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 	).Scan(&user.ID, &user.Email, &user.Role, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			logger.Debug("repository: user not found", "email", email)
 			return nil, nil
 		}
+		logger.Error("repository: failed to get user", "email", email, "error", err.Error())
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
+	logger.Debug("repository: user retrieved", "user_id", user.ID, "email", email)
 	return &user, nil
 }

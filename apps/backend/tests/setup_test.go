@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	"incident-flow/backend/internal/db"
@@ -26,6 +28,11 @@ import (
 func init() {
 	gin.SetMode(gin.TestMode)
 	_ = godotenv.Load("../.env", ".env")
+
+	// Suppress Gin and slog output during tests for cleaner test output
+	gin.DefaultWriter = io.Discard
+	gin.DefaultErrorWriter = io.Discard
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 // setupTestDB initializes a test database connection and returns a UserRepository.

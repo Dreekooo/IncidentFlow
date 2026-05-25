@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"incident-flow/backend/internal/auth"
+	"incident-flow/backend/internal/logger"
 	"incident-flow/backend/internal/repository"
 )
 
@@ -35,6 +36,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		logger.Warn("register: invalid request", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request: email must be valid, password must be 8-100 characters",
 		})
@@ -47,6 +49,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
+		logger.Error("register: password hashing failed", "email", req.Email, "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to process request",
 		})
@@ -57,18 +60,21 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user, err := h.userRepo.CreateUser(c.Request.Context(), req.Email, string(hashedPassword))
 	if err != nil {
 		if errors.Is(err, repository.ErrEmailExists) {
+			logger.Warn("register: email already exists", "email", req.Email)
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "email already registered",
 			})
 			return
 		}
 
+		logger.Error("register: failed to create user", "email", req.Email, "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to create user",
 		})
 		return
 	}
 
+	logger.Info("register: user created successfully", "user_id", user.ID, "email", req.Email)
 	c.JSON(http.StatusCreated, RegisterResponse{
 		ID:    user.ID,
 		Email: user.Email,
@@ -89,6 +95,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		logger.Warn("login: invalid request", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request: email must be valid, password is required",
 		})
@@ -101,6 +108,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Get user from DB
 	user, err := h.userRepo.GetUserByEmail(c.Request.Context(), req.Email)
 	if err != nil || user == nil {
+		logger.Warn("login: user not found or db error", "email", req.Email, "error", err)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid email or password",
 		})
@@ -110,6 +118,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
+		logger.Warn("login: invalid password", "user_id", user.ID, "email", req.Email)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid email or password",
 		})
@@ -119,12 +128,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Generate auth token
 	token, err := auth.GenerateAuthToken(user.ID)
 	if err != nil {
+		logger.Error("login: token generation failed", "user_id", user.ID, "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to generate auth token",
 		})
 		return
 	}
 
+	logger.Info("login: successful", "user_id", user.ID, "email", req.Email)
 	c.JSON(http.StatusOK, LoginResponse{
 		Token: token,
 	})

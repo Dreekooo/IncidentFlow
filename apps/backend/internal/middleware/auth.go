@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"incident-flow/backend/internal/auth"
+	"incident-flow/backend/internal/logger"
 	"net/http"
 	"strings"
 
@@ -15,6 +16,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Get Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			logger.Warn("auth middleware: missing authorization header", "remote_addr", c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "missing authorization header",
 			})
@@ -24,6 +26,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString, ok := ExtractBearerToken(authHeader)
 		if !ok {
+			logger.Warn("auth middleware: invalid bearer format", "remote_addr", c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "invalid authorization header format",
 			})
@@ -34,6 +37,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Parse and validate token
 		claims, err := auth.ParseAuthToken(tokenString)
 		if err != nil {
+			logger.Warn("auth middleware: invalid token", "error", err.Error(), "remote_addr", c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "invalid or expired token",
 			})
@@ -44,6 +48,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Store claims in context for handler to access
 		c.Set("userID", claims.UserID)
 		c.Set("claims", claims)
+
+		logger.Debug("auth middleware: token validated", "user_id", claims.UserID)
 
 		// Continue to next handler
 		c.Next()
