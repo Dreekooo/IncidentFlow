@@ -19,6 +19,7 @@ func SetupRouter(authHandler *handlers.AuthHandler) *gin.Engine {
 	})
 
 	r.POST("/register", authHandler.Register)
+	r.POST("/login", authHandler.Login)
 
 	return r
 }

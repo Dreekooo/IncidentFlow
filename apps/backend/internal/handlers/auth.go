@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
+	"incident-flow/backend/internal/auth"
 	"incident-flow/backend/internal/repository"
 )
 
@@ -71,5 +72,60 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, RegisterResponse{
 		ID:    user.ID,
 		Email: user.Email,
+	})
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req LoginRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request: email must be valid, password is required",
+		})
+		return
+	}
+
+	// Trim and lowercase email
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	// Get user from DB
+	user, err := h.userRepo.GetUserByEmail(c.Request.Context(), req.Email)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid email or password",
+		})
+		return
+	}
+
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid email or password",
+		})
+		return
+	}
+
+	// Generate auth token
+	token, err := auth.GenerateAuthToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to generate auth token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, LoginResponse{
+		Token: token,
 	})
 }

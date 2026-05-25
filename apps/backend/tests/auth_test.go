@@ -99,7 +99,7 @@ func TestRegisterShortPassword(t *testing.T) {
 	router := setupTestRouter(userRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
-	
+
 	body := []byte(`{
 	"email": "` + email + `",
 	"password": "short"
@@ -172,4 +172,189 @@ func TestRegisterPasswordHashing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.NotEqual(t, "password123", user.Password)
+}
+
+func TestLoginSuccess(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	password := "password123"
+
+	// First register the user
+	body := []byte(`{
+	"email": "` + email + `",
+	"password": "` + password + `"
+	}`)
+
+	registerReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(body),
+	)
+	registerReq.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, registerReq)
+	assert.Equal(t, http.StatusCreated, recorder.Code)
+
+	// Now attempt to login
+	loginReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/login",
+		bytes.NewBuffer(body),
+	)
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(loginRecorder, loginReq)
+	assert.Equal(t, http.StatusOK, loginRecorder.Code)
+}
+
+func TestLoginInvalidPassword(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	password := "password123"
+
+	// First register the user
+	body := []byte(`{
+	"email": "` + email + `",
+	"password": "` + password + `"
+	}`)
+
+	registerReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(body),
+	)
+	registerReq.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, registerReq)
+	assert.Equal(t, http.StatusCreated, recorder.Code)
+
+	// Now attempt to login with wrong password
+	loginBody := []byte(`{
+	"email": "` + email + `",
+	"password": "wrongpassword"
+	}`)
+
+	loginReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/login",
+		bytes.NewBuffer(loginBody),
+	)
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(loginRecorder, loginReq)
+	assert.Equal(t, http.StatusUnauthorized, loginRecorder.Code)
+}
+
+func TestLoginUserNotFound(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	password := "password123"
+
+	// Attempt to login without registering
+	body := []byte(`{
+	"email": "` + email + `",
+	"password": "` + password + `"
+	}`)
+
+	loginReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/login",
+		bytes.NewBuffer(body),
+	)
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(loginRecorder, loginReq)
+	assert.Equal(t, http.StatusUnauthorized, loginRecorder.Code)
+}
+
+func TestLoginMissingPassword(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+
+	// First register the user
+	body := []byte(`{
+	"email": "` + email + `",
+	"password": "password123"
+	}`)
+
+	registerReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(body),
+	)
+	registerReq.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, registerReq)
+	assert.Equal(t, http.StatusCreated, recorder.Code)
+
+	// Now attempt to login with missing password
+	loginBody := []byte(`{
+	"email": "` + email + `"
+	}`)
+
+	loginReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/login",
+		bytes.NewBuffer(loginBody),
+	)
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(loginRecorder, loginReq)
+	assert.Equal(t, http.StatusBadRequest, loginRecorder.Code)
+}
+
+func TestLoginMissingEmail(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	password := "password123"
+
+	// First register the user
+	body := []byte(`{
+	"email": "` + email + `",
+	"password": "` + password + `"
+	}`)
+
+	registerReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(body),
+	)
+	registerReq.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, registerReq)
+	assert.Equal(t, http.StatusCreated, recorder.Code)
+
+	// Now attempt to login with missing email
+	loginBody := []byte(`{
+	"password": "` + password + `"
+	}`)
+
+	loginReq, _ := http.NewRequest(
+		http.MethodPost,
+		"/login",
+		bytes.NewBuffer(loginBody),
+	)
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(loginRecorder, loginReq)
+	assert.Equal(t, http.StatusBadRequest, loginRecorder.Code)
 }
