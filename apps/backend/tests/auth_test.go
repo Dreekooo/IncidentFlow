@@ -51,7 +51,7 @@ func TestRegisterInvalidEmail(t *testing.T) {
 	userRepo := setupTestDB(t)
 	router := setupTestRouter(userRepo)
 	body := []byte(`{
-	"email": "invalid-email",
+	"email": "invalidemail",
 	"password": "password123"
 	}`)
 
@@ -65,6 +65,8 @@ func TestRegisterInvalidEmail(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
 
 func TestRegisterDuplicateEmail(t *testing.T) {
