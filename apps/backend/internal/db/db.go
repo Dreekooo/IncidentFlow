@@ -5,12 +5,22 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	_ "github.com/lib/pq"
 )
 
 var DB *sql.DB
+
+func getMigrationPath(filename string) string {
+	_, currentFile, _, _ := runtime.Caller(1)
+	dir := filepath.Dir(currentFile)
+	// internal/db -> internal -> apps/backend
+	backendRoot := filepath.Dir(filepath.Dir(dir))
+	return filepath.Join(backendRoot, "migrations", filename)
+}
 
 func runMigration(database *sql.DB, path string) error {
 	content, err := os.ReadFile(path)
@@ -34,7 +44,7 @@ func InitDB(database *sql.DB) error {
 		return fmt.Errorf("database is nil")
 	}
 
-	err := runMigration(database, "migrations/001_create_users.sql")
+	err := runMigration(database, getMigrationPath("001_create_users.sql"))
 	if err != nil {
 		return err
 	}

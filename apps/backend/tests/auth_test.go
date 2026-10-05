@@ -51,7 +51,7 @@ func TestRegisterInvalidEmail(t *testing.T) {
 	userRepo := setupTestDB(t)
 	router := setupTestRouter(userRepo)
 	body := []byte(`{
-	"email": "invalidemail",
+	"email": "invalid-email",
 	"password": "password123"
 	}`)
 
