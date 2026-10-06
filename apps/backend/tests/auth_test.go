@@ -396,3 +396,52 @@ func TestLoginMissingEmail(t *testing.T) {
 	router.ServeHTTP(loginRecorder, loginReq)
 	assert.Equal(t, http.StatusBadRequest, loginRecorder.Code)
 }
+
+func TestRegisterMissingFirstName(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	registerBody := []byte(`{
+	"email": "` + email + `",
+	"last_name": "Doe",
+	"password": "password123"
+	}`)
+
+	req, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(registerBody),
+	)
+
+	req.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestRegisterMissingLastName(t *testing.T) {
+	userRepo := setupTestDB(t)
+	router := setupTestRouter(userRepo)
+
+	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	registerBody := []byte(`{
+	"email": "` + email + `",
+	"first_name": "John",
+	"password": "password123"
+	}`)
+
+	req, _ := http.NewRequest(
+		http.MethodPost,
+		"/register",
+		bytes.NewBuffer(registerBody),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
