@@ -28,15 +28,17 @@ func TestRegisterSuccess(t *testing.T) {
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "password123"
 	}`)
 
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -50,15 +52,17 @@ func TestRegisterSuccess(t *testing.T) {
 func TestRegisterInvalidEmail(t *testing.T) {
 	userRepo := setupTestDB(t)
 	router := setupTestRouter(userRepo)
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "invalid-email",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "password123"
 	}`)
 
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -73,8 +77,10 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	userRepo := setupTestDB(t)
 	router := setupTestRouter(userRepo)
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "password123"
 	}`)
 
@@ -82,7 +88,7 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	req1, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req1.Header.Set("Content-Type", "application/json")
@@ -96,7 +102,7 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	req2, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req2.Header.Set("Content-Type", "application/json")
@@ -113,15 +119,17 @@ func TestRegisterShortPassword(t *testing.T) {
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "short"
 	}`)
 
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -139,7 +147,9 @@ func TestRegisterMissingPassword(t *testing.T) {
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
 	body := []byte(`{
-	"email": "` + email + `"
+	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -162,15 +172,17 @@ func TestRegisterPasswordHashing(t *testing.T) {
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "password123"
 	}`)
 
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -195,15 +207,17 @@ func TestLoginSuccess(t *testing.T) {
 	password := "password123"
 
 	// First register the user
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "` + password + `"
 	}`)
 
 	registerReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 	registerReq.Header.Set("Content-Type", "application/json")
 
@@ -212,10 +226,15 @@ func TestLoginSuccess(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, recorder.Code)
 
 	// Now attempt to login
+	loginBody := []byte(`{
+	"email": "` + email + `",
+	"password": "` + password + `"
+	}`)
+
 	loginReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/login",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(loginBody),
 	)
 	loginReq.Header.Set("Content-Type", "application/json")
 
@@ -232,15 +251,17 @@ func TestLoginInvalidPassword(t *testing.T) {
 	password := "password123"
 
 	// First register the user
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "` + password + `"
 	}`)
 
 	registerReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 	registerReq.Header.Set("Content-Type", "application/json")
 
@@ -274,7 +295,7 @@ func TestLoginUserNotFound(t *testing.T) {
 	password := "password123"
 
 	// Attempt to login without registering
-	body := []byte(`{
+	loginBody := []byte(`{
 	"email": "` + email + `",
 	"password": "` + password + `"
 	}`)
@@ -282,7 +303,7 @@ func TestLoginUserNotFound(t *testing.T) {
 	loginReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/login",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(loginBody),
 	)
 	loginReq.Header.Set("Content-Type", "application/json")
 
@@ -298,15 +319,17 @@ func TestLoginMissingPassword(t *testing.T) {
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
 	// First register the user
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "password123"
 	}`)
 
 	registerReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 	registerReq.Header.Set("Content-Type", "application/json")
 
@@ -339,15 +362,17 @@ func TestLoginMissingEmail(t *testing.T) {
 	password := "password123"
 
 	// First register the user
-	body := []byte(`{
+	registerBody := []byte(`{
 	"email": "` + email + `",
+	"first_name": "John",
+	"last_name": "Doe",
 	"password": "` + password + `"
 	}`)
 
 	registerReq, _ := http.NewRequest(
 		http.MethodPost,
 		"/register",
-		bytes.NewBuffer(body),
+		bytes.NewBuffer(registerBody),
 	)
 	registerReq.Header.Set("Content-Type", "application/json")
 

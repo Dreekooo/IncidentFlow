@@ -62,6 +62,10 @@ func setupTestDB(t testing.TB) *repository.UserRepository {
 		t.Fatal("failed to connect to database", err)
 	}
 
+	if err := db.InitDB(database); err != nil {
+		t.Fatal("failed to initialize database", err)
+	}
+
 	database.Exec("TRUNCATE TABLE users;")
 
 	return repository.NewUserRepository(database)

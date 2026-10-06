@@ -44,9 +44,15 @@ func InitDB(database *sql.DB) error {
 		return fmt.Errorf("database is nil")
 	}
 
-	err := runMigration(database, getMigrationPath("001_create_users.sql"))
-	if err != nil {
-		return err
+	migrations := []string{
+		"001_create_users.sql",
+		"002_add_user_names.sql",
+	}
+
+	for _, migration := range migrations {
+		if err := runMigration(database, getMigrationPath(migration)); err != nil {
+			return err
+		}
 	}
 
 	DB = database

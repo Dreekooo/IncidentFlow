@@ -21,7 +21,7 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword string) (*models.User, error) {
+func (r *UserRepository) CreateUser(ctx context.Context, email, firstName, lastName, hashedPassword string) (*models.User, error) {
 	// Ensure context has a timeout if not already set
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
@@ -47,21 +47,25 @@ func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword s
 	var createdAt time.Time
 	err = r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO users (email, password, role, created_at, updated_at)
-		 VALUES ($1, $2, 'viewer', NOW(), NOW())
+		`INSERT INTO users (email, password, first_name, last_name, role, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, 'viewer', NOW(), NOW())
 		 RETURNING id, role, created_at`,
 		email,
 		hashedPassword,
+		firstName,
+		lastName,
 	).Scan(&userID, &role, &createdAt)
 	if err != nil {
 		logger.Error("repository: failed to insert user", "email", email, "error", err.Error())
 		return nil, fmt.Errorf("insert user: %w", err)
 	}
 
-	logger.Debug("repository: user created", "user_id", userID, "email", email, "role", role)
+	logger.Debug("repository: user created", "user_id", userID, "email", email, "first_name", firstName, "last_name", lastName, "role", role)
 	return &models.User{
 		ID:        userID,
 		Email:     email,
+		FirstName: firstName,
+		LastName:  lastName,
 		Role:      role,
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
@@ -78,9 +82,9 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 	var user models.User
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT id, email, role, password, created_at, updated_at FROM users WHERE email = $1",
+		"SELECT id, email, first_name, last_name, role, password, created_at, updated_at FROM users WHERE email = $1",
 		email,
-	).Scan(&user.ID, &user.Email, &user.Role, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Role, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			logger.Debug("repository: user not found", "email", email)

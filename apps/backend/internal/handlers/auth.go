@@ -14,13 +14,17 @@ import (
 )
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=100"`
+	Email     string `json:"email" binding:"required,email"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Password  string `json:"password" binding:"required,min=8,max=100"`
 }
 
 type RegisterResponse struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	ID        int    `json:"id"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 type AuthHandler struct {
@@ -57,7 +61,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Create user in DB
-	user, err := h.userRepo.CreateUser(c.Request.Context(), req.Email, string(hashedPassword))
+	user, err := h.userRepo.CreateUser(c.Request.Context(), req.Email, req.FirstName, req.LastName, string(hashedPassword))
 	if err != nil {
 		if errors.Is(err, repository.ErrEmailExists) {
 			logger.Warn("register: email already exists", "email", req.Email)
@@ -74,10 +78,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	logger.Info("register: user created successfully", "user_id", user.ID, "email", req.Email)
+	logger.Info("register: user created successfully", "user_id", user.ID, "email", req.Email, "first_name", req.FirstName, "last_name", req.LastName)
 	c.JSON(http.StatusCreated, RegisterResponse{
-		ID:    user.ID,
-		Email: user.Email,
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
 	})
 }
 
