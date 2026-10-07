@@ -46,7 +46,6 @@ func InitDB(database *sql.DB) error {
 
 	migrations := []string{
 		"001_create_users.sql",
-		"002_add_user_names.sql",
 	}
 
 	for _, migration := range migrations {
