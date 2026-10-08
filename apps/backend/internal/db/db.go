@@ -45,7 +45,13 @@ func InitDB(database *sql.DB) error {
 	}
 
 	migrations := []string{
+		"000_create_enums.sql",
 		"001_create_users.sql",
+		"002_create_projects.sql",
+		"003_create_project_members.sql",
+		"004_create_project_join_requests.sql",
+		"005_create_incidents.sql",
+		"006_create_indexes.sql",
 	}
 
 	for _, migration := range migrations {

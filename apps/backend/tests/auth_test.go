@@ -30,9 +30,9 @@ func TestRegisterSuccess(t *testing.T) {
 
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "password123",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "password123"
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -54,9 +54,9 @@ func TestRegisterInvalidEmail(t *testing.T) {
 	router := setupTestRouter(userRepo)
 	registerBody := []byte(`{
 	"email": "invalid-email",
+	"password": "password123",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "password123"
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -79,9 +79,9 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "password123",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "password123"
+	"last_name": "Doe"
 	}`)
 
 	// First registration should succeed
@@ -121,9 +121,9 @@ func TestRegisterShortPassword(t *testing.T) {
 
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "short",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "short"
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -171,12 +171,13 @@ func TestRegisterPasswordHashing(t *testing.T) {
 	router := setupTestRouter(userRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
+	password := "password123"
 
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "` + password + `",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "password123"
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -196,7 +197,7 @@ func TestRegisterPasswordHashing(t *testing.T) {
 	user, err := userRepo.GetUserByEmail(req.Context(), email)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
-	assert.NotEqual(t, "password123", user.Password)
+	assert.NotEqual(t, password, user.PasswordHash)
 }
 
 func TestLoginSuccess(t *testing.T) {
@@ -209,9 +210,9 @@ func TestLoginSuccess(t *testing.T) {
 	// First register the user
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "` + password + `",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "` + password + `"
+	"last_name": "Doe"
 	}`)
 
 	registerReq, _ := http.NewRequest(
@@ -253,9 +254,9 @@ func TestLoginInvalidPassword(t *testing.T) {
 	// First register the user
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "` + password + `",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "` + password + `"
+	"last_name": "Doe"
 	}`)
 
 	registerReq, _ := http.NewRequest(
@@ -321,9 +322,9 @@ func TestLoginMissingPassword(t *testing.T) {
 	// First register the user
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "password123",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "password123"
+	"last_name": "Doe"
 	}`)
 
 	registerReq, _ := http.NewRequest(
@@ -364,9 +365,9 @@ func TestLoginMissingEmail(t *testing.T) {
 	// First register the user
 	registerBody := []byte(`{
 	"email": "` + email + `",
+	"password": "` + password + `",
 	"first_name": "John",
-	"last_name": "Doe",
-	"password": "` + password + `"
+	"last_name": "Doe"
 	}`)
 
 	registerReq, _ := http.NewRequest(
@@ -404,8 +405,8 @@ func TestRegisterMissingFirstName(t *testing.T) {
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
 	"email": "` + email + `",
-	"last_name": "Doe",
-	"password": "password123"
+	"password": "password123",
+	"last_name": "Doe"
 	}`)
 
 	req, _ := http.NewRequest(
@@ -429,8 +430,8 @@ func TestRegisterMissingLastName(t *testing.T) {
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
 	"email": "` + email + `",
-	"first_name": "John",
-	"password": "password123"
+	"password": "password123",
+	"first_name": "John"
 	}`)
 
 	req, _ := http.NewRequest(

@@ -15,9 +15,9 @@ import (
 
 type RegisterRequest struct {
 	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=8,max=100"`
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
-	Password  string `json:"password" binding:"required,min=8,max=100"`
 }
 
 type RegisterResponse struct {
@@ -61,7 +61,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Create user in DB
-	user, err := h.userRepo.CreateUser(c.Request.Context(), req.Email, req.FirstName, req.LastName, string(hashedPassword))
+	user, err := h.userRepo.CreateUser(c.Request.Context(), req.Email, string(hashedPassword), req.FirstName, req.LastName)
 	if err != nil {
 		if errors.Is(err, repository.ErrEmailExists) {
 			logger.Warn("register: email already exists", "email", req.Email)
@@ -122,7 +122,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Verify password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
 		logger.Warn("login: invalid password", "user_id", user.ID, "email", req.Email)
 		c.JSON(http.StatusUnauthorized, gin.H{

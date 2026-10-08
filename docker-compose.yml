@@ -27,4 +27,4 @@ services:
     env_file:
       - ./apps/backend/.env
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/incidentflow?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/incidentflow?sslmode=disable
