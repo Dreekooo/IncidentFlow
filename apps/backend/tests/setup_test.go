@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"database/sql"
 	"os"
 	"testing"
 
@@ -53,8 +54,8 @@ func setupTestLogging(t testing.TB) {
 	})
 }
 
-// setupTestDB initializes a test database connection and returns a UserRepository.
-func setupTestDB(t testing.TB) *repository.UserRepository {
+// setupTestDB initializes a test database connection, cleans all tables, and returns *sql.DB.
+func setupTestDB(t testing.TB) *sql.DB {
 	setupTestLogging(t)
 
 	database, err := db.Connect()
@@ -66,13 +67,21 @@ func setupTestDB(t testing.TB) *repository.UserRepository {
 		t.Fatal("failed to initialize database", err)
 	}
 
-	database.Exec("TRUNCATE TABLE users;")
+	_, err = database.Exec("TRUNCATE TABLE users, projects, project_members RESTART IDENTITY CASCADE;")
+	if err != nil {
+		t.Fatal("failed to truncate test tables:", err)
+	}
 
-	return repository.NewUserRepository(database)
+	t.Cleanup(func() {
+		database.Close()
+	})
+
+	return database
 }
 
 // setupTestRouter initializes the Gin router with the necessary handlers for testing.
-func setupTestRouter(userRepo *repository.UserRepository) *gin.Engine {
+func setupTestRouter(userRepo *repository.UserRepository, projectRepo repository.ProjectRepository) *gin.Engine {
 	authHandler := handlers.NewAuthHandler(userRepo)
-	return server.SetupRouter(authHandler)
+	projectHandler := handlers.NewProjectHandler(projectRepo)
+	return server.SetupRouter(authHandler, projectHandler)
 }

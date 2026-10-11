@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.ProjectHandler) *gin.Engine {
 	r := gin.Default()
 	profileHandler := handlers.NewProfileHandler()
 
@@ -31,6 +31,12 @@ func SetupRouter(authHandler *handlers.AuthHandler) *gin.Engine {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/profile", profileHandler.Profile)
+
+		projects := protected.Group("/projects")
+		{
+			projects.POST("", projectHandler.CreateProject)     // POST /api/projects
+			projects.GET("/:id", projectHandler.GetProjectByID) // GET /api/projects/:id
+		}
 	}
 
 	return r

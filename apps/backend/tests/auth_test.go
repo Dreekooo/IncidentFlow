@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"incident-flow/backend/internal/repository"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,8 +25,12 @@ import (
  */
 
 func TestRegisterSuccess(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -50,8 +56,12 @@ func TestRegisterSuccess(t *testing.T) {
 }
 
 func TestRegisterInvalidEmail(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 	registerBody := []byte(`{
 	"email": "invalid-email",
 	"password": "password123",
@@ -74,8 +84,12 @@ func TestRegisterInvalidEmail(t *testing.T) {
 }
 
 func TestRegisterDuplicateEmail(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
 	"email": "` + email + `",
@@ -114,8 +128,12 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 }
 
 func TestRegisterShortPassword(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -141,8 +159,12 @@ func TestRegisterShortPassword(t *testing.T) {
 }
 
 func TestRegisterMissingPassword(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -167,8 +189,12 @@ func TestRegisterMissingPassword(t *testing.T) {
 }
 
 func TestRegisterPasswordHashing(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -201,8 +227,12 @@ func TestRegisterPasswordHashing(t *testing.T) {
 }
 
 func TestLoginSuccess(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -245,8 +275,12 @@ func TestLoginSuccess(t *testing.T) {
 }
 
 func TestLoginInvalidPassword(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -289,8 +323,12 @@ func TestLoginInvalidPassword(t *testing.T) {
 }
 
 func TestLoginUserNotFound(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -314,8 +352,12 @@ func TestLoginUserNotFound(t *testing.T) {
 }
 
 func TestLoginMissingPassword(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -356,8 +398,12 @@ func TestLoginMissingPassword(t *testing.T) {
 }
 
 func TestLoginMissingEmail(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -399,8 +445,12 @@ func TestLoginMissingEmail(t *testing.T) {
 }
 
 func TestRegisterMissingFirstName(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
@@ -424,8 +474,12 @@ func TestRegisterMissingFirstName(t *testing.T) {
 }
 
 func TestRegisterMissingLastName(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{

@@ -5,12 +5,18 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"incident-flow/backend/internal/repository"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthCheck(t *testing.T) {
-	userRepo := setupTestDB(t)
-	router := setupTestRouter(userRepo)
+	database := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(database)
+	projectRepo := repository.NewProjectRepository(database)
+
+	router := setupTestRouter(userRepo, projectRepo)
 
 	req, _ := http.NewRequest(
 		http.MethodGet,
