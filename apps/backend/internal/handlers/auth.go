@@ -35,6 +35,7 @@ func NewAuthHandler(userRepo *repository.UserRepository) *AuthHandler {
 	return &AuthHandler{userRepo: userRepo}
 }
 
+// POST /api/register
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 
@@ -96,6 +97,7 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
+// POST /api/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 

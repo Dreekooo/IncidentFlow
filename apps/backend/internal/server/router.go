@@ -36,6 +36,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.Pro
 		{
 			projects.POST("", projectHandler.CreateProject)     // POST /api/projects
 			projects.GET("/:id", projectHandler.GetProjectByID) // GET /api/projects/:id
+
+			projects.POST("/:id/join", projectHandler.JoinProject)                  // POST /api/projects/:id/join
+			projects.POST("/:id/requests/handle", projectHandler.HandleJoinRequest) // POST /api/projects/:id/requests/handle
+			projects.GET("/:id/requests", projectHandler.GetJoinRequests)           // GET /api/projects/:id/requests
 		}
 	}
 

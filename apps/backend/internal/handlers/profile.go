@@ -13,6 +13,7 @@ func NewProfileHandler() *ProfileHandler {
 	return &ProfileHandler{}
 }
 
+// GET /api/profile
 func (h *ProfileHandler) Profile(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 

@@ -12,6 +12,13 @@ type ProjectRepository interface {
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetByJoinCode(ctx context.Context, joinCode string) (*models.Project, error)
 	GetByID(ctx context.Context, id int) (*models.Project, error)
+
+	CreateJoinRequest(ctx context.Context, req *models.ProjectJoinRequest) error
+	GetPendingJoinRequests(ctx context.Context, projectID int) ([]models.ProjectJoinRequest, error)
+	GetJoinRequestByID(ctx context.Context, requestID int) (*models.ProjectJoinRequest, error)
+	UpdateJoinRequestStatus(ctx context.Context, requestID int, status string) error
+	AddProjectMember(ctx context.Context, projectID, userID int) error
+	IsProjectMember(ctx context.Context, projectID, userID int) (bool, error)
 }
 
 type projectRepository struct {
@@ -106,4 +113,105 @@ func (r *projectRepository) GetByID(ctx context.Context, id int) (*models.Projec
 	}
 
 	return &project, nil
+}
+
+func (r *projectRepository) CreateJoinRequest(ctx context.Context, req *models.ProjectJoinRequest) error {
+	query := `
+		INSERT INTO project_join_requests (project_id, user_id, status)
+		VALUES ($1, $2, 'pending')
+	`
+	_, err := r.db.ExecContext(ctx, query, req.ProjectID, req.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to create join request: %w", err)
+	}
+
+	return nil
+}
+
+func (r *projectRepository) GetPendingJoinRequests(ctx context.Context, projectID int) ([]models.ProjectJoinRequest, error) {
+	query := `
+		SELECT id, project_id, user_id, status, created_at
+		FROM project_join_requests
+		WHERE project_id = $1 AND status = 'pending'
+	`
+	rows, err := r.db.QueryContext(ctx, query, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending join requests: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.ProjectJoinRequest
+	for rows.Next() {
+		var req models.ProjectJoinRequest
+		err := rows.Scan(&req.ID, &req.ProjectID, &req.UserID, &req.Status, &req.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan join request: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error occurred while iterating over rows: %w", err)
+	}
+
+	return requests, nil
+}
+
+func (r *projectRepository) GetJoinRequestByID(ctx context.Context, requestID int) (*models.ProjectJoinRequest, error) {
+	query := `
+		SELECT id, project_id, user_id, status, created_at
+		FROM project_join_requests
+		WHERE id = $1
+	`
+
+	var req models.ProjectJoinRequest
+	err := r.db.QueryRowContext(ctx, query, requestID).Scan(&req.ID, &req.ProjectID, &req.UserID, &req.Status, &req.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get join request by id: %w", err)
+	}
+	return &req, nil
+}
+
+func (r *projectRepository) UpdateJoinRequestStatus(ctx context.Context, requestID int, status string) error {
+	query := `
+		UPDATE project_join_requests
+		SET status = $1
+		WHERE id = $2
+	`
+	_, err := r.db.ExecContext(ctx, query, status, requestID)
+	if err != nil {
+		return fmt.Errorf("failed to update join request status: %w", err)
+	}
+	return nil
+}
+
+func (r *projectRepository) AddProjectMember(ctx context.Context, projectID, userID int) error {
+	query := `
+		INSERT INTO project_members (project_id, user_id, role)
+		VALUES ($1, $2, 'Member')
+	`
+	_, err := r.db.ExecContext(ctx, query, projectID, userID)
+
+	if err != nil {
+		return fmt.Errorf("failed to add project member: %w", err)
+	}
+	return nil
+}
+
+func (r *projectRepository) IsProjectMember(ctx context.Context, projectID, userID int) (bool, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM project_members
+		WHERE project_id = $1 AND user_id = $2
+	`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, projectID, userID).Scan(&count)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check project membership: %w", err)
+	}
+	return count == 1, nil
 }
