@@ -76,16 +76,14 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 // GET /api/projects/:id
 func (h *ProjectHandler) GetProjectByID(c *gin.Context) {
-	var request struct {
-		ID int `uri:"id" binding:"required"`
-	}
-
-	if err := c.ShouldBindUri(&request); err != nil {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project ID"})
 		return
 	}
 
-	project, err := h.projectRepo.GetByID(c.Request.Context(), request.ID)
+	project, err := h.projectRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve project"})
 		return
@@ -117,7 +115,16 @@ func (h *ProjectHandler) JoinProject(c *gin.Context) {
 
 	userID := userIDVal.(int)
 
-	project, err := h.projectRepo.GetByJoinCode(c.Request.Context(), c.Param("join_code"))
+	var req struct {
+		JoinCode string `json:"join_code" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByJoinCode(c.Request.Context(), req.JoinCode)
 	if err != nil || project == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid join code or database error"})
 		return
@@ -136,6 +143,7 @@ func (h *ProjectHandler) JoinProject(c *gin.Context) {
 	joinRequest := &models.ProjectJoinRequest{
 		ProjectID: project.ID,
 		UserID:    userID,
+		Status:    "pending",
 	}
 
 	if err := h.projectRepo.CreateJoinRequest(c.Request.Context(), joinRequest); err != nil {
@@ -143,14 +151,15 @@ func (h *ProjectHandler) JoinProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusCreated, gin.H{
 		"message": "Join request created successfully",
+		"request": joinRequest,
 	})
 }
 
 // GET /api/projects/:id/requests
 func (h *ProjectHandler) GetJoinRequests(c *gin.Context) {
-	userID := c.GetInt("user_id")
+	userID := c.GetInt("userID")
 	projectID, _ := strconv.Atoi(c.Param("id"))
 
 	project, err := h.projectRepo.GetByID(c.Request.Context(), projectID)
@@ -175,13 +184,23 @@ func (h *ProjectHandler) GetJoinRequests(c *gin.Context) {
 }
 
 type HandleJoinRequestInput struct {
-	Action string `json:"action" binding:"required,oneof=approve reject"`
+	RequestID int    `json:"request_id" binding:"required"`
+	Action    string `json:"action" binding:"required,oneof=approve reject"`
 }
 
 // POST /api/projects/:id/requests/handle
 func (h *ProjectHandler) HandleJoinRequest(c *gin.Context) {
-	UserID := c.GetInt("user_id")
-	requestID, _ := strconv.Atoi(c.Param("id"))
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project id"})
+		return
+	}
 
 	var input HandleJoinRequestInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -189,39 +208,40 @@ func (h *ProjectHandler) HandleJoinRequest(c *gin.Context) {
 		return
 	}
 
-	joinRequest, err := h.projectRepo.GetJoinRequestByID(c.Request.Context(), requestID)
+	ctx := c.Request.Context()
+
+	project, err := h.projectRepo.GetByID(ctx, projectID)
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if project.OwnerID != userID.(int) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only project owner can review requests"})
+		return
+	}
+
+	joinRequest, err := h.projectRepo.GetJoinRequestByID(ctx, input.RequestID)
 	if err != nil || joinRequest == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "join request not found"})
 		return
 	}
 
-	project, err := h.projectRepo.GetByID(c.Request.Context(), joinRequest.ProjectID)
-	if err != nil || project.OwnerID != UserID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "unauthorized: only project owner can handle join requests"})
+	dbStatus := "accepted"
+	if input.Action == "reject" {
+		dbStatus = "rejected"
+	}
+
+	if err := h.projectRepo.UpdateJoinRequestStatus(ctx, input.RequestID, dbStatus); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update request status"})
 		return
 	}
 
-	switch input.Action {
-		case "approve":
-			err = h.projectRepo.UpdateJoinRequestStatus(c.Request.Context(), requestID, "approved")
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to approve join request"})
-				return
-			}
-			err = h.projectRepo.AddProjectMember(c.Request.Context(), joinRequest.ProjectID, joinRequest.UserID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add project member"})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"message": "join request approved"})
-		case "reject":
-			err = h.projectRepo.UpdateJoinRequestStatus(c.Request.Context(), requestID, "rejected")
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reject join request"})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"message": "join request rejected"})
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid action"})
+	if input.Action == "approve" {
+		if err := h.projectRepo.AddProjectMember(ctx, joinRequest.ProjectID, joinRequest.UserID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add project member"})
+			return
+		}
 	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "join request processed successfully"})
 }

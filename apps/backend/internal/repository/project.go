@@ -119,12 +119,12 @@ func (r *projectRepository) CreateJoinRequest(ctx context.Context, req *models.P
 	query := `
 		INSERT INTO project_join_requests (project_id, user_id, status)
 		VALUES ($1, $2, 'pending')
+		RETURNING id, status, created_at
 	`
-	_, err := r.db.ExecContext(ctx, query, req.ProjectID, req.UserID)
+	err := r.db.QueryRowContext(ctx, query, req.ProjectID, req.UserID).Scan(&req.ID, &req.Status, &req.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create join request: %w", err)
 	}
-
 	return nil
 }
 
@@ -178,7 +178,7 @@ func (r *projectRepository) GetJoinRequestByID(ctx context.Context, requestID in
 func (r *projectRepository) UpdateJoinRequestStatus(ctx context.Context, requestID int, status string) error {
 	query := `
 		UPDATE project_join_requests
-		SET status = $1
+		SET status = $1::join_request_status
 		WHERE id = $2
 	`
 	_, err := r.db.ExecContext(ctx, query, status, requestID)
@@ -191,7 +191,8 @@ func (r *projectRepository) UpdateJoinRequestStatus(ctx context.Context, request
 func (r *projectRepository) AddProjectMember(ctx context.Context, projectID, userID int) error {
 	query := `
 		INSERT INTO project_members (project_id, user_id, role)
-		VALUES ($1, $2, 'Member')
+		VALUES ($1, $2, 'member'::project_role)
+		ON CONFLICT (project_id, user_id) DO NOTHING
 	`
 	_, err := r.db.ExecContext(ctx, query, projectID, userID)
 
