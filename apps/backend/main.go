@@ -43,7 +43,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(userRepo)
 	projectHandler := handlers.NewProjectHandler(projectRepo)
 
-	r := server.SetupRouter(authHandler, projectHandler)
+	r := server.SetupRouter(authHandler, projectHandler, projectRepo)
 
 	logger.Info("starting server on :8080")
 	if err := r.Run(":8080"); err != nil {

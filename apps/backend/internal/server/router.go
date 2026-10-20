@@ -5,10 +5,12 @@ import (
 	"incident-flow/backend/internal/middleware"
 	"net/http"
 
+	"incident-flow/backend/internal/repository"
+
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.ProjectHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.ProjectHandler, projectRepo repository.ProjectRepository) *gin.Engine {
 	r := gin.Default()
 	profileHandler := handlers.NewProfileHandler()
 
@@ -34,12 +36,21 @@ func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.Pro
 
 		projects := protected.Group("/projects")
 		{
-			projects.POST("", projectHandler.CreateProject)     // POST /api/projects
-			projects.GET("/:id", projectHandler.GetProjectByID) // GET /api/projects/:id
+			projects.POST("", projectHandler.CreateProject)    // POST /api/projects
+			projects.POST("/join", projectHandler.JoinProject) // POST /api/projects/join
 
-			projects.POST("/:id/join", projectHandler.JoinProject)                  // POST /api/projects/:id/join
-			projects.POST("/:id/requests/handle", projectHandler.HandleJoinRequest) // POST /api/projects/:id/requests/handle
-			projects.GET("/:id/requests", projectHandler.GetJoinRequests)           // GET /api/projects/:id/requests
+			projects.GET("/:id", middleware.RequireProjectRole(projectRepo, "member"), projectHandler.GetProjectByID)            // GET /api/projects/:id
+			projects.GET("/:id/join-code", middleware.RequireProjectRole(projectRepo, "member"), projectHandler.GetJoinCode)     // GET /api/projects/:id/join-code
+			projects.GET("/:id/members", middleware.RequireProjectRole(projectRepo, "member"), projectHandler.GetProjectMembers) // GET /api/projects/:id/members
+			projects.POST("/:id/leave", middleware.RequireProjectRole(projectRepo, "member"), projectHandler.LeaveProject)       // POST /api/projects/:id/leave
+
+			projects.GET("/:id/requests", middleware.RequireProjectRole(projectRepo, "admin"), projectHandler.GetJoinRequests)                // GET /api/projects/:id/requests
+			projects.POST("/:id/requests/handle", middleware.RequireProjectRole(projectRepo, "admin"), projectHandler.HandleJoinRequest)      // POST /api/projects/:id/requests/handle
+			projects.PATCH("/:id/members/:userID/role", middleware.RequireProjectRole(projectRepo, "admin"), projectHandler.UpdateMemberRole) // PATCH /api/projects/:id/members/:userID/role
+			projects.DELETE("/:id/members/:userID", middleware.RequireProjectRole(projectRepo, "admin"), projectHandler.RemoveProjectMember)  // DELETE /api/projects/:id/members/:userID
+
+			projects.PUT("/:id", middleware.RequireProjectRole(projectRepo, "owner"), projectHandler.UpdateProject)    // PUT /api/projects/:id
+			projects.DELETE("/:id", middleware.RequireProjectRole(projectRepo, "owner"), projectHandler.DeleteProject) // DELETE /api/projects/:id
 		}
 	}
 

@@ -264,7 +264,7 @@ func TestJoinProject_Success(t *testing.T) {
 		"join_code": createResp.Project.JoinCode,
 	})
 
-	urlJoin := fmt.Sprintf("/api/projects/%d/join", createResp.Project.ID)
+	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
 	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
@@ -288,6 +288,31 @@ func TestJoinProject_Success(t *testing.T) {
 	assert.Equal(t, "Join request created successfully", joinResp.Message, "Expected success message")
 	assert.Equal(t, createResp.Project.ID, joinResp.Request.ProjectID, "Project ID should match")
 	assert.Equal(t, "pending", joinResp.Request.Status, "Request status should be pending")
+}
+
+func TestJoinProject_InvalidJoinCode(t *testing.T) {
+	db := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	tokenMember := registerAndLoginTestUser(t, router)
+
+	// Try to join a project with an invalid join code
+	joinBody, _ := json.Marshal(map[string]string{
+		"join_code": "invalid-join-code",
+	})
+
+	urlJoin := "/api/projects/join"
+	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
+	reqJoin.Header.Set("Content-Type", "application/json")
+	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin := httptest.NewRecorder()
+	router.ServeHTTP(wJoin, reqJoin)
+
+	assert.Equal(t, http.StatusNotFound, wJoin.Code)
 }
 
 func TestReviewJoinRequest_Approve(t *testing.T) {
@@ -314,7 +339,7 @@ func TestReviewJoinRequest_Approve(t *testing.T) {
 
 	tokenMember := registerAndLoginTestUser(t, router)
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
-	urlJoin := fmt.Sprintf("/api/projects/%d/join", createResp.Project.ID)
+	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
 	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
@@ -377,7 +402,7 @@ func TestReviewJoinRequest_Reject(t *testing.T) {
 	// Member registers and sends a join request
 	tokenMember := registerAndLoginTestUser(t, router)
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
-	urlJoin := fmt.Sprintf("/api/projects/%d/join", createResp.Project.ID)
+	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
 	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
@@ -441,7 +466,7 @@ func TestJoinProject_AlreadyMember(t *testing.T) {
 
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 
-	urlJoin := fmt.Sprintf("/api/projects/%d/join", createResp.Project.ID)
+	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
 	reqJoin.Header.Set("Authorization", "Bearer "+tokenOwner)
@@ -450,4 +475,492 @@ func TestJoinProject_AlreadyMember(t *testing.T) {
 	router.ServeHTTP(wJoin, reqJoin)
 
 	assert.Equal(t, http.StatusConflict, wJoin.Code, "Expected status code 409 Conflict")
+}
+
+func TestJoinProject_AlreadyRequested(t *testing.T) {
+	db := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	tokenOwner := registerAndLoginTestUser(t, router)
+
+	projectBody := []byte(`{"name": "Already Requested Project", "description": "Test already requested"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID       int    `json:"id"`
+			JoinCode string `json:"join_code"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	tokenMember := registerAndLoginTestUser(t, router)
+	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
+
+	urlJoin := "/api/projects/join"
+
+	// First join request
+	reqJoin1, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
+	reqJoin1.Header.Set("Content-Type", "application/json")
+	reqJoin1.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin1 := httptest.NewRecorder()
+	router.ServeHTTP(wJoin1, reqJoin1)
+
+	assert.Equal(t, http.StatusCreated, wJoin1.Code, "Expected status code 201 Created for first join request")
+
+	// Attempt to send a second join request with the same join code
+	reqJoin2, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
+	reqJoin2.Header.Set("Content-Type", "application/json")
+	reqJoin2.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin2 := httptest.NewRecorder()
+	router.ServeHTTP(wJoin2, reqJoin2)
+
+	assert.Equal(t, http.StatusConflict, wJoin2.Code, "Expected status code 409 Conflict for duplicate join request")
+}
+
+func TestRemoveProjectMember_Success(t *testing.T) {
+	db := setupTestDB(t)
+
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner registers and creates a project
+	tokenOwner := registerAndLoginTestUser(t, router)
+	projectBody := []byte(`{"name": "Remove Member Project", "description": "Test remove member"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+	assert.Equal(t, http.StatusCreated, wCreate.Code)
+
+	var createResp struct {
+		Project struct {
+			ID       int    `json:"id"`
+			JoinCode string `json:"join_code"`
+		} `json:"project"`
+	}
+	err := json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+	assert.NoError(t, err)
+
+	// Member registers and sends a join request
+	tokenMember := registerAndLoginTestUser(t, router)
+	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
+	urlJoin := "/api/projects/join"
+	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
+	reqJoin.Header.Set("Content-Type", "application/json")
+	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin := httptest.NewRecorder()
+	router.ServeHTTP(wJoin, reqJoin)
+	assert.Equal(t, http.StatusCreated, wJoin.Code)
+
+	var joinResp struct {
+		Request struct {
+			ID     int `json:"id"`
+			UserID int `json:"user_id"`
+		} `json:"request"`
+	}
+	err = json.Unmarshal(wJoin.Body.Bytes(), &joinResp)
+	assert.NoError(t, err)
+
+	// Owner approves the join request
+	handleBody, _ := json.Marshal(map[string]interface{}{
+		"request_id": joinResp.Request.ID,
+		"action":     "approve",
+	})
+	urlHandle := fmt.Sprintf("/api/projects/%d/requests/handle", createResp.Project.ID)
+	reqHandle, _ := http.NewRequest(http.MethodPost, urlHandle, bytes.NewBuffer(handleBody))
+	reqHandle.Header.Set("Content-Type", "application/json")
+	reqHandle.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wHandle := httptest.NewRecorder()
+	router.ServeHTTP(wHandle, reqHandle)
+	assert.Equal(t, http.StatusOK, wHandle.Code)
+
+	// Owner removes the member from the project
+	urlRemove := fmt.Sprintf("/api/projects/%d/members/%d", createResp.Project.ID, joinResp.Request.UserID)
+	reqRemove, _ := http.NewRequest(http.MethodDelete, urlRemove, nil)
+	reqRemove.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wRemove := httptest.NewRecorder()
+	router.ServeHTTP(wRemove, reqRemove)
+	assert.Equal(t, http.StatusOK, wRemove.Code)
+
+	// Verify that the deleted member can no longer access the project
+	urlGetProject := fmt.Sprintf("/api/projects/%d", createResp.Project.ID)
+	reqGetProject, _ := http.NewRequest(http.MethodGet, urlGetProject, nil)
+	reqGetProject.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wGetProject := httptest.NewRecorder()
+	router.ServeHTTP(wGetProject, reqGetProject)
+
+	assert.Equal(t, http.StatusForbidden, wGetProject.Code)
+}
+
+func TestGetProjectMembers_Success(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner registers and creates a project
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Members List Test", "description": "Testing members endpoint"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+	assert.Equal(t, http.StatusCreated, wCreate.Code)
+
+	var createResp struct {
+		Project struct {
+			ID int `json:"id"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Owner retrieves the list of project members
+	urlMembers := fmt.Sprintf("/api/projects/%d/members", createResp.Project.ID)
+	reqMembers, _ := http.NewRequest(http.MethodGet, urlMembers, nil)
+	reqMembers.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wMembers := httptest.NewRecorder()
+	router.ServeHTTP(wMembers, reqMembers)
+
+	assert.Equal(t, http.StatusOK, wMembers.Code)
+	assert.Contains(t, wMembers.Body.String(), "owner")
+}
+
+func TestGetProjectMembers_ForbiddenForNonMember(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner registers and creates a project
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Private Members List", "description": "Security test"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID int `json:"id"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Another user (not a member) tries to access the project members list
+	tokenOther := registerAndLoginTestUser(t, router)
+	urlMembers := fmt.Sprintf("/api/projects/%d/members", createResp.Project.ID)
+	reqMembers, _ := http.NewRequest(http.MethodGet, urlMembers, nil)
+	reqMembers.Header.Set("Authorization", "Bearer "+tokenOther)
+
+	wMembers := httptest.NewRecorder()
+	router.ServeHTTP(wMembers, reqMembers)
+
+	assert.Equal(t, http.StatusForbidden, wMembers.Code)
+}
+
+func TestUpdateProject_Success(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner creates a project
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Original Name", "description": "Original Description"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+	assert.Equal(t, http.StatusCreated, wCreate.Code)
+
+	var createResp struct {
+		Project struct {
+			ID int `json:"id"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Owner updates the project
+	updateBody := []byte(`{"name": "Updated Project Name", "description": "Updated Description"}`)
+	urlUpdate := fmt.Sprintf("/api/projects/%d", createResp.Project.ID)
+	reqUpdate, _ := http.NewRequest(http.MethodPut, urlUpdate, bytes.NewBuffer(updateBody))
+	reqUpdate.Header.Set("Content-Type", "application/json")
+	reqUpdate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wUpdate := httptest.NewRecorder()
+	router.ServeHTTP(wUpdate, reqUpdate)
+
+	assert.Equal(t, http.StatusOK, wUpdate.Code)
+
+	var updateResp struct {
+		Project struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		} `json:"project"`
+	}
+	err := json.Unmarshal(wUpdate.Body.Bytes(), &updateResp)
+	assert.NoError(t, err)
+	assert.Equal(t, "Updated Project Name", updateResp.Project.Name)
+	assert.Equal(t, "Updated Description", updateResp.Project.Description)
+}
+
+func TestUpdateMemberRole_Success(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner creates a project and a member joins
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Role Change Project", "description": "Testing role update"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID       int    `json:"id"`
+			JoinCode string `json:"join_code"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	tokenMember := registerAndLoginTestUser(t, router)
+	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
+	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
+	reqJoin.Header.Set("Content-Type", "application/json")
+	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin := httptest.NewRecorder()
+	router.ServeHTTP(wJoin, reqJoin)
+
+	var joinResp struct {
+		Request struct {
+			ID     int `json:"id"`
+			UserID int `json:"user_id"`
+		} `json:"request"`
+	}
+	_ = json.Unmarshal(wJoin.Body.Bytes(), &joinResp)
+
+	approveBody, _ := json.Marshal(map[string]interface{}{"request_id": joinResp.Request.ID, "action": "approve"})
+	urlHandle := fmt.Sprintf("/api/projects/%d/requests/handle", createResp.Project.ID)
+	reqApprove, _ := http.NewRequest(http.MethodPost, urlHandle, bytes.NewBuffer(approveBody))
+	reqApprove.Header.Set("Content-Type", "application/json")
+	reqApprove.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wApprove := httptest.NewRecorder()
+	router.ServeHTTP(wApprove, reqApprove)
+	assert.Equal(t, http.StatusOK, wApprove.Code)
+
+	// Owner updates the member's role to 'admin'
+	roleBody := []byte(`{"role": "admin"}`)
+	urlRole := fmt.Sprintf("/api/projects/%d/members/%d/role", createResp.Project.ID, joinResp.Request.UserID)
+	reqRole, _ := http.NewRequest(http.MethodPatch, urlRole, bytes.NewBuffer(roleBody))
+	reqRole.Header.Set("Content-Type", "application/json")
+	reqRole.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wRole := httptest.NewRecorder()
+	router.ServeHTTP(wRole, reqRole)
+
+	assert.Equal(t, http.StatusOK, wRole.Code)
+}
+
+func TestUpdateMemberRole_ForbiddenForMember(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Forbidden Role Project", "description": "Testing permissions"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID       int    `json:"id"`
+			JoinCode string `json:"join_code"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Member registers and joins the project
+	tokenMember := registerAndLoginTestUser(t, router)
+	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
+	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
+	reqJoin.Header.Set("Content-Type", "application/json")
+	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin := httptest.NewRecorder()
+	router.ServeHTTP(wJoin, reqJoin)
+
+	var joinResp struct {
+		Request struct {
+			ID     int `json:"id"`
+			UserID int `json:"user_id"`
+		} `json:"request"`
+	}
+	_ = json.Unmarshal(wJoin.Body.Bytes(), &joinResp)
+
+	approveBody, _ := json.Marshal(map[string]interface{}{"request_id": joinResp.Request.ID, "action": "approve"})
+	urlHandle := fmt.Sprintf("/api/projects/%d/requests/handle", createResp.Project.ID)
+	reqApprove, _ := http.NewRequest(http.MethodPost, urlHandle, bytes.NewBuffer(approveBody))
+	reqApprove.Header.Set("Content-Type", "application/json")
+	reqApprove.Header.Set("Authorization", "Bearer "+tokenOwner)
+	wApprove := httptest.NewRecorder()
+	router.ServeHTTP(wApprove, reqApprove)
+
+	// Member attempts to update their own role to 'admin'
+	roleBody := []byte(`{"role": "admin"}`)
+	urlRole := fmt.Sprintf("/api/projects/%d/members/%d/role", createResp.Project.ID, joinResp.Request.UserID)
+	reqRole, _ := http.NewRequest(http.MethodPatch, urlRole, bytes.NewBuffer(roleBody))
+	reqRole.Header.Set("Content-Type", "application/json")
+	reqRole.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wRole := httptest.NewRecorder()
+	router.ServeHTTP(wRole, reqRole)
+
+	// The member should receive a 403 Forbidden response since they are not authorized to change roles
+	assert.Equal(t, http.StatusForbidden, wRole.Code)
+}
+
+func TestLeaveProject_Success(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	// Owner creates a project
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Leave Test Project", "description": "Testing leave functionality"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID       int    `json:"id"`
+			JoinCode string `json:"join_code"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Member registers, joins the project, and gets approved
+	tokenMember := registerAndLoginTestUser(t, router)
+	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
+	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
+	reqJoin.Header.Set("Content-Type", "application/json")
+	reqJoin.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wJoin := httptest.NewRecorder()
+	router.ServeHTTP(wJoin, reqJoin)
+
+	var joinResp struct {
+		Request struct {
+			ID int `json:"id"`
+		} `json:"request"`
+	}
+	_ = json.Unmarshal(wJoin.Body.Bytes(), &joinResp)
+
+	// Owner approves the join request
+	approveBody, _ := json.Marshal(map[string]interface{}{"request_id": joinResp.Request.ID, "action": "approve"})
+	urlHandle := fmt.Sprintf("/api/projects/%d/requests/handle", createResp.Project.ID)
+	reqApprove, _ := http.NewRequest(http.MethodPost, urlHandle, bytes.NewBuffer(approveBody))
+	reqApprove.Header.Set("Content-Type", "application/json")
+	reqApprove.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wApprove := httptest.NewRecorder()
+	router.ServeHTTP(wApprove, reqApprove)
+	assert.Equal(t, http.StatusOK, wApprove.Code)
+
+	// Member leaves the project
+	urlLeave := fmt.Sprintf("/api/projects/%d/leave", createResp.Project.ID)
+	reqLeave, _ := http.NewRequest(http.MethodPost, urlLeave, nil)
+	reqLeave.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wLeave := httptest.NewRecorder()
+	router.ServeHTTP(wLeave, reqLeave)
+
+	assert.Equal(t, http.StatusOK, wLeave.Code)
+
+	// Verify that the member can no longer access the project after leaving
+	urlGet := fmt.Sprintf("/api/projects/%d", createResp.Project.ID)
+	reqGet, _ := http.NewRequest(http.MethodGet, urlGet, nil)
+	reqGet.Header.Set("Authorization", "Bearer "+tokenMember)
+
+	wGet := httptest.NewRecorder()
+	router.ServeHTTP(wGet, reqGet)
+
+	assert.Equal(t, http.StatusForbidden, wGet.Code)
+}
+
+func TestLeaveProject_OwnerForbidden(t *testing.T) {
+	db := setupTestDB(t)
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	router := setupTestRouter(userRepo, projectRepo)
+
+	tokenOwner := registerAndLoginTestUser(t, router)
+	createBody := []byte(`{"name": "Owner Leave Project", "description": "Testing owner restriction"}`)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
+	reqCreate.Header.Set("Content-Type", "application/json")
+	reqCreate.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wCreate := httptest.NewRecorder()
+	router.ServeHTTP(wCreate, reqCreate)
+
+	var createResp struct {
+		Project struct {
+			ID int `json:"id"`
+		} `json:"project"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+
+	// Owner attempts to leave the project
+	urlLeave := fmt.Sprintf("/api/projects/%d/leave", createResp.Project.ID)
+	reqLeave, _ := http.NewRequest(http.MethodPost, urlLeave, nil)
+	reqLeave.Header.Set("Authorization", "Bearer "+tokenOwner)
+
+	wLeave := httptest.NewRecorder()
+	router.ServeHTTP(wLeave, reqLeave)
+
+	// The owner should receive a 403 Forbidden response since they cannot leave their own project
+	assert.Equal(t, http.StatusForbidden, wLeave.Code)
+	assert.Contains(t, wLeave.Body.String(), "project owners cannot remove themselves")
 }

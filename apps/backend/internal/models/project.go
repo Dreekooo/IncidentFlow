@@ -34,7 +34,7 @@ type Incident struct {
 	Description string           `json:"description"`
 	Priority    IncidentPriority `json:"priority"`
 	Status      IncidentStatus   `json:"status"`
-	AssignedTo  int              `json:"assigned_to"`
+	AssignedTo  *int             `json:"assigned_to"`
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
 }

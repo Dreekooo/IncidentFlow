@@ -19,6 +19,14 @@ type ProjectRepository interface {
 	UpdateJoinRequestStatus(ctx context.Context, requestID int, status string) error
 	AddProjectMember(ctx context.Context, projectID, userID int) error
 	IsProjectMember(ctx context.Context, projectID, userID int) (bool, error)
+	GetProjectMember(ctx context.Context, projectID, userID int) (*models.ProjectMember, error)
+	GetProjectMembers(ctx context.Context, projectID int) ([]models.ProjectMember, error)
+	HasPendingJoinRequest(ctx context.Context, projectID, userID int) (bool, error)
+	RemoveProjectMember(ctx context.Context, projectID, userID int) error
+	LeaveProject(ctx context.Context, projectID, userID int) error
+	UpdateProjectMemberRole(ctx context.Context, input UdpateProjectMemberRoleInput) error
+	UpdateProject(ctx context.Context, input UpdateProjectInput) error
+	DeleteProject(ctx context.Context, projectID int) error
 }
 
 type projectRepository struct {
@@ -215,4 +223,165 @@ func (r *projectRepository) IsProjectMember(ctx context.Context, projectID, user
 		return false, fmt.Errorf("failed to check project membership: %w", err)
 	}
 	return count == 1, nil
+}
+
+func (r *projectRepository) GetProjectMember(ctx context.Context, projectID, userID int) (*models.ProjectMember, error) {
+	query := `
+		SELECT id, project_id, user_id, role, joined_at
+		FROM project_members
+		WHERE project_id = $1 AND user_id = $2
+	`
+	var member models.ProjectMember
+	err := r.db.QueryRowContext(ctx, query, projectID, userID).Scan(
+		&member.ID,
+		&member.ProjectID,
+		&member.UserID,
+		&member.Role,
+		&member.JoinedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get project member: %w", err)
+	}
+	return &member, nil
+}
+
+func (r *projectRepository) GetProjectMembers(ctx context.Context, projectID int) ([]models.ProjectMember, error) {
+	query := `
+		SELECT id, project_id, user_id, role, joined_at
+		FROM project_members
+		WHERE project_id = $1
+	`
+	rows, err := r.db.QueryContext(ctx, query, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []models.ProjectMember
+	for rows.Next() {
+		var member models.ProjectMember
+		err := rows.Scan(&member.ID, &member.ProjectID, &member.UserID, &member.Role, &member.JoinedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan project member: %w", err)
+		}
+		members = append(members, member)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error occurred while iterating over rows: %w", err)
+	}
+
+	return members, nil
+}
+
+func (r *projectRepository) HasPendingJoinRequest(ctx context.Context, projectID, userID int) (bool, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM project_join_requests
+		WHERE project_id = $1 AND user_id = $2 AND status = 'pending'
+	`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, projectID, userID).Scan(&count)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check pending join request: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (r *projectRepository) RemoveProjectMember(ctx context.Context, projectID, userID int) error {
+	query := `
+		DELETE FROM project_members
+		WHERE project_id = $1 AND user_id = $2
+	`
+	_, err := r.db.ExecContext(ctx, query, projectID, userID)
+
+	if err != nil {
+		return fmt.Errorf("failed to remove project member: %w", err)
+	}
+
+	return nil
+}
+
+func (r *projectRepository) LeaveProject(ctx context.Context, projectID, userID int) error {
+	query := `
+		DELETE FROM project_members
+		WHERE project_id = $1 AND user_id = $2
+	`
+	_, err := r.db.ExecContext(ctx, query, projectID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to leave project: %w", err)
+	}
+
+	return nil
+}
+
+type UdpateProjectMemberRoleInput struct {
+	ProjectID int
+	UserID    int
+	NewRole   string
+}
+
+func (r *projectRepository) UpdateProjectMemberRole(ctx context.Context, input UdpateProjectMemberRoleInput) error {
+	query := `
+        UPDATE project_members
+        SET role = $1::project_role
+        WHERE project_id = $2 AND user_id = $3
+    `
+	_, err := r.db.ExecContext(ctx, query, input.NewRole, input.ProjectID, input.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to update project member role: %w", err)
+	}
+
+	return nil
+}
+
+type UpdateProjectInput struct {
+	ProjectID   int
+	Name        string
+	Description string
+}
+
+func (r *projectRepository) UpdateProject(ctx context.Context, input UpdateProjectInput) error {
+	query := `
+		UPDATE projects
+		SET name = $1, description = $2
+		WHERE id = $3
+	`
+	_, err := r.db.ExecContext(ctx, query, input.Name, input.Description, input.ProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to update project: %w", err)
+	}
+	return nil
+}
+
+func (r *projectRepository) DeleteProject(ctx context.Context, projectID int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer tx.Rollback()
+
+	// Delete project members
+	_, err = tx.ExecContext(ctx, "DELETE FROM project_members WHERE project_id = $1", projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete project members: %w", err)
+	}
+
+	// Delete the project
+	_, err = tx.ExecContext(ctx, "DELETE FROM projects WHERE id = $1", projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
