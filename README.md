@@ -65,5 +65,3 @@ This keeps schema changes incremental and safer to evolve.
 2. Add incident model and CRUD
 3. Build the frontend shell
 4. Connect auth flow end to end
-
-trigger
