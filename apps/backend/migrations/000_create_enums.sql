@@ -1,7 +1,7 @@
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_role') THEN
-        CREATE TYPE project_role AS ENUM ('owner', 'member');
+        CREATE TYPE project_role AS ENUM ('owner', 'admin', 'member');
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'join_request_status') THEN
