@@ -10,7 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.ProjectHandler, projectRepo repository.ProjectRepository) *gin.Engine {
+func SetupRouter(
+	authHandler *handlers.AuthHandler,
+	projectHandler *handlers.ProjectHandler,
+	incidentHandler *handlers.IncidentHandler,
+	projectRepo repository.ProjectRepository,
+) *gin.Engine {
 	r := gin.Default()
 	profileHandler := handlers.NewProfileHandler()
 
@@ -18,7 +23,6 @@ func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.Pro
 	r.Use(middleware.LoggingMiddleware())
 
 	r.GET("/health", func(c *gin.Context) {
-
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
 			"message": "Backend is healthy",
@@ -51,6 +55,13 @@ func SetupRouter(authHandler *handlers.AuthHandler, projectHandler *handlers.Pro
 
 			projects.PUT("/:id", middleware.RequireProjectRole(projectRepo, "owner"), projectHandler.UpdateProject)    // PUT /api/projects/:id
 			projects.DELETE("/:id", middleware.RequireProjectRole(projectRepo, "owner"), projectHandler.DeleteProject) // DELETE /api/projects/:id
+
+			projects.POST("/:id/incidents", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.CreateIncident)                   // POST /api/projects/:id/incidents
+			projects.GET("/:id/incidents", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.ListIncidentsByProjectID)          // GET /api/projects/:id/incidents
+			projects.GET("/:id/incidents/:incidentID", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.GetIncidentByID)       // GET /api/projects/:id/incidents/:incidentID
+			projects.PUT("/:id/incidents/:incidentID", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.UpdateIncident)        // PUT /api/projects/:id/incidents/:incidentID
+			projects.PUT("/:id/incidents/:incidentID/assign", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.AssignIncident) // PUT /api/projects/:id/incidents/:incidentID/assign
+			projects.DELETE("/:id/incidents/:incidentID", middleware.RequireProjectRole(projectRepo, "member"), incidentHandler.DeleteIncident)     // DELETE /api/projects/:id/incidents/:incidentID
 		}
 	}
 

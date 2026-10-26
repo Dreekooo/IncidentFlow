@@ -83,5 +83,6 @@ func setupTestDB(t testing.TB) *sql.DB {
 func setupTestRouter(userRepo *repository.UserRepository, projectRepo repository.ProjectRepository) *gin.Engine {
 	authHandler := handlers.NewAuthHandler(userRepo)
 	projectHandler := handlers.NewProjectHandler(projectRepo)
-	return server.SetupRouter(authHandler, projectHandler, projectRepo)
+	incidentHandler := handlers.NewIncidentHandler(repository.NewIncidentRepository(setupTestDB(nil)))
+	return server.SetupRouter(authHandler, projectHandler, incidentHandler, projectRepo)
 }
