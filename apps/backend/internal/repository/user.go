@@ -13,15 +13,20 @@ import (
 
 var ErrEmailExists = errors.New("email already registered")
 
-type UserRepository struct {
+type UserRepository interface {
+	CreateUser(ctx context.Context, email, hashedPassword string, firstName, lastName string) (*models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+}
+
+type userRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository(db *sql.DB) UserRepository {
+	return &userRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword string, firstName, lastName string) (*models.User, error) {
+func (r *userRepository) CreateUser(ctx context.Context, email, hashedPassword string, firstName, lastName string) (*models.User, error) {
 	// Ensure context has a timeout if not already set
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
@@ -69,7 +74,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email, hashedPassword s
 	}, nil
 }
 
-func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)

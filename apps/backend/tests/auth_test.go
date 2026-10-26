@@ -29,8 +29,9 @@ func TestRegisterSuccess(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -60,8 +61,9 @@ func TestRegisterInvalidEmail(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 	registerBody := []byte(`{
 	"email": "invalid-email",
 	"password": "password123",
@@ -88,8 +90,9 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
 	"email": "` + email + `",
@@ -132,8 +135,9 @@ func TestRegisterShortPassword(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -163,8 +167,9 @@ func TestRegisterMissingPassword(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -193,8 +198,9 @@ func TestRegisterPasswordHashing(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -231,8 +237,9 @@ func TestLoginSuccess(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -276,11 +283,12 @@ func TestLoginSuccess(t *testing.T) {
 
 func TestLoginInvalidPassword(t *testing.T) {
 	database := setupTestDB(t)
+	incidentRepo := repository.NewIncidentRepository(database)
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -327,8 +335,9 @@ func TestLoginUserNotFound(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -356,8 +365,9 @@ func TestLoginMissingPassword(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 
@@ -402,8 +412,9 @@ func TestLoginMissingEmail(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	password := "password123"
@@ -449,8 +460,9 @@ func TestRegisterMissingFirstName(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
-
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(database)
+	
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{
@@ -478,8 +490,9 @@ func TestRegisterMissingLastName(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
 	registerBody := []byte(`{

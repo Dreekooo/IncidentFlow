@@ -31,8 +31,9 @@ func TestProtectedRouteWithValidToken(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Generate valid token for userID=3
 	token, _ := auth.GenerateAuthToken(3)
@@ -56,8 +57,9 @@ func TestProtectedRouteWithoutToken(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	req := httptest.NewRequest("GET", "/api/profile", nil)
 	w := httptest.NewRecorder()
@@ -71,8 +73,9 @@ func TestProtectedRouteWithInvalidToken(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	req := httptest.NewRequest("GET", "/api/profile", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
@@ -87,8 +90,9 @@ func TestProtectedRouteWithWrongBearerFormat(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	req := httptest.NewRequest("GET", "/api/profile", nil)
 	req.Header.Set("Authorization", "InvalidPrefix some-token")
@@ -103,8 +107,9 @@ func TestProtectedRouteWithExpiredToken(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Generate token that expired 1 hour ago
 	secret := []byte(os.Getenv("JWT_SECRET"))
@@ -123,8 +128,8 @@ func TestProtectedRouteWithEmptyTokenAfterBearer(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	req := httptest.NewRequest("GET", "/api/profile", nil)
 	req.Header.Set("Authorization", "Bearer ")
@@ -139,8 +144,8 @@ func TestProtectedRouteAuthHeaderWithExtraSpaces(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	token, _ := auth.GenerateAuthToken(3)
 
@@ -159,7 +164,8 @@ func TestRequireProjectRole_ForbiddenForMember(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Create project
 	tokenOwner := registerAndLoginTestUser(t, router)

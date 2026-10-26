@@ -66,8 +66,9 @@ func TestCreateProject(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	token := registerAndLoginTestUser(t, router)
 
@@ -95,8 +96,9 @@ func TestCreateProjectWithoutAuth(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	projectBody := []byte(`{
 		"name": "Test Project",
@@ -117,7 +119,9 @@ func TestCreateProject_ValidationError(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	token := registerAndLoginTestUser(t, router)
 
@@ -163,8 +167,9 @@ func TestGetProjectByID_Success(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	token := registerAndLoginTestUser(t, router)
 
@@ -204,8 +209,9 @@ func TestGetProjectByID_NotFound(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	token := registerAndLoginTestUser(t, router)
 
@@ -227,8 +233,9 @@ func TestJoinProject_Success(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 
@@ -295,7 +302,9 @@ func TestJoinProject_InvalidJoinCode(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenMember := registerAndLoginTestUser(t, router)
 
@@ -319,7 +328,9 @@ func TestReviewJoinRequest_Approve(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 	projectBody := []byte(`{"name": "Approve Flow Project", "description": "Test approve"}`)
@@ -379,7 +390,9 @@ func TestReviewJoinRequest_Reject(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -445,7 +458,9 @@ func TestJoinProject_AlreadyMember(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 	projectBody := []byte(`{"name": "Already Member Project", "description": "Test already member"}`)
@@ -482,7 +497,9 @@ func TestJoinProject_AlreadyRequested(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 
@@ -533,8 +550,9 @@ func TestRemoveProjectMember_Success(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
+	incidentRepo := repository.NewIncidentRepository(db)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -615,7 +633,9 @@ func TestGetProjectMembers_Success(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -651,7 +671,9 @@ func TestGetProjectMembers_ForbiddenForNonMember(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -686,7 +708,9 @@ func TestUpdateProject_Success(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -734,7 +758,9 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project and a member joins
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -798,7 +824,9 @@ func TestUpdateMemberRole_ForbiddenForMember(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 	createBody := []byte(`{"name": "Forbidden Role Project", "description": "Testing permissions"}`)
@@ -861,7 +889,9 @@ func TestLeaveProject_Success(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project
 	tokenOwner := registerAndLoginTestUser(t, router)
@@ -934,7 +964,9 @@ func TestLeaveProject_OwnerForbidden(t *testing.T) {
 	db := setupTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
-	router := setupTestRouter(userRepo, projectRepo)
+	incidentRepo := repository.NewIncidentRepository(db)
+
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	tokenOwner := registerAndLoginTestUser(t, router)
 	createBody := []byte(`{"name": "Owner Leave Project", "description": "Testing owner restriction"}`)

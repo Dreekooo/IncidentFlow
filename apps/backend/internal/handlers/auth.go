@@ -28,10 +28,10 @@ type RegisterResponse struct {
 }
 
 type AuthHandler struct {
-	userRepo *repository.UserRepository
+	userRepo repository.UserRepository
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository) *AuthHandler {
+func NewAuthHandler(userRepo repository.UserRepository) *AuthHandler {
 	return &AuthHandler{userRepo: userRepo}
 }
 

@@ -15,8 +15,9 @@ func TestHealthCheck(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
-	router := setupTestRouter(userRepo, projectRepo)
+	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	req, _ := http.NewRequest(
 		http.MethodGet,

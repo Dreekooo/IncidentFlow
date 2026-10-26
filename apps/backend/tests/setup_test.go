@@ -67,7 +67,7 @@ func setupTestDB(t testing.TB) *sql.DB {
 		t.Fatal("failed to initialize database", err)
 	}
 
-	_, err = database.Exec("TRUNCATE TABLE users, projects, project_members RESTART IDENTITY CASCADE;")
+	_, err = database.Exec("TRUNCATE TABLE users, projects, project_members, incidents RESTART IDENTITY CASCADE;")
 	if err != nil {
 		t.Fatal("failed to truncate test tables:", err)
 	}
@@ -80,9 +80,14 @@ func setupTestDB(t testing.TB) *sql.DB {
 }
 
 // setupTestRouter initializes the Gin router with the necessary handlers for testing.
-func setupTestRouter(userRepo *repository.UserRepository, projectRepo repository.ProjectRepository) *gin.Engine {
+func setupTestRouter(
+	userRepo repository.UserRepository,
+	projectRepo repository.ProjectRepository,
+	incidentRepo repository.IncidentRepository,
+) *gin.Engine {
 	authHandler := handlers.NewAuthHandler(userRepo)
 	projectHandler := handlers.NewProjectHandler(projectRepo)
-	incidentHandler := handlers.NewIncidentHandler(repository.NewIncidentRepository(setupTestDB(nil)))
+	incidentHandler := handlers.NewIncidentHandler(incidentRepo)
+
 	return server.SetupRouter(authHandler, projectHandler, incidentHandler, projectRepo)
 }

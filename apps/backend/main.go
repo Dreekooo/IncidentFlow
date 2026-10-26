@@ -35,14 +35,15 @@ func main() {
 
 	logger.Info("database initialized successfully")
 
-	// Initialize repositories and handlers
+	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
 	projectRepo := repository.NewProjectRepository(database)
+	incidentRepo := repository.NewIncidentRepository(database)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo)
 	projectHandler := handlers.NewProjectHandler(projectRepo)
-	incidentHandler := handlers.NewIncidentHandler(repository.NewIncidentRepository(database))
+	incidentHandler := handlers.NewIncidentHandler(incidentRepo)
 
 	r := server.SetupRouter(authHandler, projectHandler, incidentHandler, projectRepo)
 
