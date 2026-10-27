@@ -168,7 +168,7 @@ func TestRequireProjectRole_ForbiddenForMember(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Create project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Role Test Project", "description": "Testing member restrictions"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -188,7 +188,7 @@ func TestRequireProjectRole_ForbiddenForMember(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Add a member to the project using the join code
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))

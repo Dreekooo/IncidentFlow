@@ -70,7 +70,7 @@ func SetupRouter(
 				projectAdmin.DELETE("/members/:userID", projectHandler.RemoveProjectMember)  // DELETE /api/projects/:id/members/:userID
 
 				// Managing incidents for project admins (inherits the "admin" role)
-				incidents := projectMember.Group("/incidents")
+				incidents := projectAdmin.Group("/incidents")
 				{
 					incidents.POST("", incidentHandler.CreateIncident)                   // POST /api/projects/:id/incidents
 					incidents.PUT("/:incidentID", incidentHandler.UpdateIncident)        // PUT /api/projects/:id/incidents/:incidentID

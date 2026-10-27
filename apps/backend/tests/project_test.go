@@ -7,59 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"incident-flow/backend/internal/repository"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func registerAndLoginTestUser(t *testing.T, router http.Handler) string {
-	t.Helper()
-
-	// Register a test user
-	email := fmt.Sprintf("test%d@test.com", time.Now().UnixNano())
-
-	registerBody := []byte(`{
-	"email": "` + email + `",
-	"password": "password123",
-	"first_name": "John",
-	"last_name": "Doe"
-	}`)
-
-	req, _ := http.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(registerBody))
-	req.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, req)
-
-	if recorder.Code != http.StatusCreated {
-		t.Fatalf("Failed to register test user: %s", recorder.Body.String())
-	}
-
-	// Log in the test user
-	loginBody := []byte(`{
-	"email": "` + email + `",
-	"password": "password123"
-	}`)
-
-	req, _ = http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(loginBody))
-	req.Header.Set("Content-Type", "application/json")
-	recorder = httptest.NewRecorder()
-	router.ServeHTTP(recorder, req)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("Failed to log in test user: %s", recorder.Body.String())
-	}
-
-	var response struct {
-		Token string `json:"token"`
-	}
-	err := json.Unmarshal(recorder.Body.Bytes(), &response)
-	assert.NoError(t, err, "Response should be valid JSON")
-	assert.NotEmpty(t, response.Token, "Token should not be empty")
-
-	return response.Token
-}
 
 func TestCreateProject(t *testing.T) {
 	db := setupTestDB(t)
@@ -70,7 +22,7 @@ func TestCreateProject(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	token := registerAndLoginTestUser(t, router)
+	token := registerAndLoginTestUser(t, router, "test@test.com", "password123")
 
 	projectBody := []byte(`{
 		"name": "Test Project",
@@ -123,7 +75,7 @@ func TestCreateProject_ValidationError(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	token := registerAndLoginTestUser(t, router)
+	token := registerAndLoginTestUser(t, router, "test@test.com", "password123")
 
 	projectBody := []byte(`{
 		"description": "This is a test project without a name"
@@ -143,25 +95,6 @@ func TestCreateProject_ValidationError(t *testing.T) {
 	assert.Contains(t, response, "error", "Response should contain an error message")
 }
 
-func getProjectIDFromResponse(t *testing.T, b []byte) any {
-	t.Helper()
-	var response struct {
-		Project struct {
-			ID int `json:"id"`
-		} `json:"project"`
-	}
-	err := json.Unmarshal(b, &response)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if response.Project.ID == 0 {
-		t.Fatalf("Project ID is missing in the response")
-	}
-
-	return response.Project.ID
-}
-
 func TestGetProjectByID_Success(t *testing.T) {
 	db := setupTestDB(t)
 
@@ -171,7 +104,7 @@ func TestGetProjectByID_Success(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	token := registerAndLoginTestUser(t, router)
+	token := registerAndLoginTestUser(t, router, "test@test.com", "password123")
 
 	// Create a test project
 	projectBody := []byte(`{
@@ -213,7 +146,7 @@ func TestGetProjectByID_NotFound(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	token := registerAndLoginTestUser(t, router)
+	token := registerAndLoginTestUser(t, router, "test@test.com", "password123")
 
 	// Attempt to get a non-existent project by ID
 	nonExistentProjectID := 676767
@@ -237,7 +170,7 @@ func TestJoinProject_Success(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 
 	// Create a test project
 	projectBody := []byte(`{
@@ -264,7 +197,7 @@ func TestJoinProject_Success(t *testing.T) {
 	assert.NoError(t, err, "Response should be valid JSON")
 	assert.NotEmpty(t, createResp.Project.JoinCode, "Response should contain project data")
 
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 
 	// Join the project using the join code
 	joinBody, _ := json.Marshal(map[string]string{
@@ -306,7 +239,7 @@ func TestJoinProject_InvalidJoinCode(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 
 	// Try to join a project with an invalid join code
 	joinBody, _ := json.Marshal(map[string]string{
@@ -332,7 +265,7 @@ func TestReviewJoinRequest_Approve(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	projectBody := []byte(`{"name": "Approve Flow Project", "description": "Test approve"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -348,7 +281,7 @@ func TestReviewJoinRequest_Approve(t *testing.T) {
 	}
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
@@ -395,7 +328,7 @@ func TestReviewJoinRequest_Reject(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	projectBody := []byte(`{"name": "Reject Flow Project", "description": "Test reject"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -413,7 +346,7 @@ func TestReviewJoinRequest_Reject(t *testing.T) {
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
 	// Member registers and sends a join request
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
@@ -462,7 +395,7 @@ func TestJoinProject_AlreadyMember(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	projectBody := []byte(`{"name": "Already Member Project", "description": "Test already member"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -501,7 +434,7 @@ func TestJoinProject_AlreadyRequested(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 
 	projectBody := []byte(`{"name": "Already Requested Project", "description": "Test already requested"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
@@ -519,7 +452,7 @@ func TestJoinProject_AlreadyRequested(t *testing.T) {
 	}
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 
 	urlJoin := "/api/projects/join"
@@ -555,7 +488,7 @@ func TestRemoveProjectMember_Success(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	projectBody := []byte(`{"name": "Remove Member Project", "description": "Test remove member"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(projectBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -575,7 +508,7 @@ func TestRemoveProjectMember_Success(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Member registers and sends a join request
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	urlJoin := "/api/projects/join"
 	reqJoin, _ := http.NewRequest(http.MethodPost, urlJoin, bytes.NewBuffer(joinBody))
@@ -638,7 +571,7 @@ func TestGetProjectMembers_Success(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Members List Test", "description": "Testing members endpoint"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -676,7 +609,7 @@ func TestGetProjectMembers_ForbiddenForNonMember(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner registers and creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Private Members List", "description": "Security test"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -693,7 +626,7 @@ func TestGetProjectMembers_ForbiddenForNonMember(t *testing.T) {
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
 	// Another user (not a member) tries to access the project members list
-	tokenOther := registerAndLoginTestUser(t, router)
+	tokenOther := registerAndLoginTestUser(t, router, "other@test.com", "password123!")
 	urlMembers := fmt.Sprintf("/api/projects/%d/members", createResp.Project.ID)
 	reqMembers, _ := http.NewRequest(http.MethodGet, urlMembers, nil)
 	reqMembers.Header.Set("Authorization", "Bearer "+tokenOther)
@@ -713,7 +646,7 @@ func TestUpdateProject_Success(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Original Name", "description": "Original Description"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -763,7 +696,7 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project and a member joins
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Role Change Project", "description": "Testing role update"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -780,7 +713,7 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	}
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
@@ -828,7 +761,7 @@ func TestUpdateMemberRole_ForbiddenForMember(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Forbidden Role Project", "description": "Testing permissions"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -846,7 +779,7 @@ func TestUpdateMemberRole_ForbiddenForMember(t *testing.T) {
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
 	// Member registers and joins the project
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
@@ -894,7 +827,7 @@ func TestLeaveProject_Success(t *testing.T) {
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
 	// Owner creates a project
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Leave Test Project", "description": "Testing leave functionality"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
@@ -912,7 +845,7 @@ func TestLeaveProject_Success(t *testing.T) {
 	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
 
 	// Member registers, joins the project, and gets approved
-	tokenMember := registerAndLoginTestUser(t, router)
+	tokenMember := registerAndLoginTestUser(t, router, "member@test.com", "password123!")
 	joinBody, _ := json.Marshal(map[string]string{"join_code": createResp.Project.JoinCode})
 	reqJoin, _ := http.NewRequest(http.MethodPost, "/api/projects/join", bytes.NewBuffer(joinBody))
 	reqJoin.Header.Set("Content-Type", "application/json")
@@ -968,7 +901,7 @@ func TestLeaveProject_OwnerForbidden(t *testing.T) {
 
 	router := setupTestRouter(userRepo, projectRepo, incidentRepo)
 
-	tokenOwner := registerAndLoginTestUser(t, router)
+	tokenOwner := registerAndLoginTestUser(t, router, "owner@test.com", "password123!")
 	createBody := []byte(`{"name": "Owner Leave Project", "description": "Testing owner restriction"}`)
 	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/projects", bytes.NewBuffer(createBody))
 	reqCreate.Header.Set("Content-Type", "application/json")
