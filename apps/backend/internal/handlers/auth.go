@@ -94,7 +94,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token  string `json:"token"`
+	UserID int    `json:"user_id"`
 }
 
 // POST /api/login
@@ -145,6 +146,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	logger.Info("login: successful", "user_id", user.ID, "email", req.Email)
 	c.JSON(http.StatusOK, LoginResponse{
-		Token: token,
+		Token:  token,
+		UserID: user.ID,
 	})
 }

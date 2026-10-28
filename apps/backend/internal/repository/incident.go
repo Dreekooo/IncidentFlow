@@ -152,6 +152,16 @@ func (r *incidentRepository) UpdateIncident(ctx context.Context, incident *model
 }
 
 func (r *incidentRepository) AssignIncident(ctx context.Context, projectID int, incidentID int, userID int) error {
+	var isMember bool
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2)`
+	err := r.db.QueryRowContext(ctx, checkQuery, projectID, userID).Scan(&isMember)
+	if err != nil {
+		return fmt.Errorf("failed to check project membership: %w", err)
+	}
+	if !isMember {
+		return fmt.Errorf("user is not a member of this project")
+	}
+
 	query := `
 		UPDATE incidents
 		SET assigned_to = $1, updated_at = NOW()

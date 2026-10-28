@@ -163,6 +163,10 @@ func (h *IncidentHandler) AssignIncident(c *gin.Context) {
 
 	err = h.incidentRepo.AssignIncident(c.Request.Context(), projectID, incidentID, req.UserID)
 	if err != nil {
+		if err.Error() == "user is not a member of this project" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User is not a member of this project"})
+			return
+		}
 		if err.Error() == "incident not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Incident not found"})
 			return
